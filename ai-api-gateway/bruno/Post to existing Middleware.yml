@@ -1,0 +1,35 @@
+info:
+  name: Post to existing Middleware
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://localhost:3000/aoai/openai/v1/chat/completions
+  headers:
+    - name: api-key
+      value: "{{api-key}}"
+      disabled: true
+  body:
+    type: json
+    data: |-
+      {
+        "model": "gpt-4o",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are Migros AI Chat, a helpful assistant for Migros employees."
+          },
+          {
+            "role": "user",
+            "content": "Generate an image of a cat"
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

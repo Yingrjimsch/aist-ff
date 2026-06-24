@@ -1,0 +1,21 @@
+[[providers]]
+id = "openai"
+name = "OpenAI"
+url = "https://api.openai.com/v1"
+
+[[providers]]
+id = "anthropic"
+name = "Anthropic"
+url = "https://api.anthropic.com/v1"
+
+[[models]]
+name = "gpt-4o"
+provider_ids = ["openai"]
+
+[[models]]
+name = "claude-3-5-sonnet"
+provider_ids = ["anthropic"]
+
+[[models]]
+name = "custom-router-model"
+provider_ids = ["openai", "anthropic"] # Belongs to both!
