@@ -3,9 +3,16 @@ name = "ai-api-gateway"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+db = ["dep:sqlx"]
+
 [dependencies]
+async-trait = "0.1.89"
 axum = "0.8.9"
+dotenvy = "0.15.7"
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres"], optional = true }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 toml = "1.1.2"

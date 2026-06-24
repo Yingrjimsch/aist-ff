@@ -1,19 +1,31 @@
-mod config;
+mod data;
+
+#[cfg(feature = "db")]
+use data::db_repo::DbRepository;
+use data::toml_repo::TomlRepository;
+use data::traits::DataRepository;
+
+use std::{env, error::Error, sync::Arc};
 
 use axum::{
     Router,
-    body::Bytes,
+    body::{Body, Bytes},
     extract::Path,
     http::{HeaderMap, Response, StatusCode},
     routing::{get, post},
 };
-use config::{ConfigLoader, TomlConfigLoader};
-use reqwest::{Body, Method};
+use reqwest::Method;
 
 const BASE_URL: &str = "https://mgb-aifo-proxy-dev.service.migros.cloud";
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    dotenvy::dotenv().ok();
+
+    match env::var("DATABASE_NAME") {
+        Ok(name) => println!("Database Name: {}", name),
+        Err(_) => println!("DATABASE_NAME not set"),
+    }
     // const BASE_URL: &str = "https://jsonplaceholder.typicode.com";
     let app = Router::new()
         .route("/", get(|| async { "I am sooo healthy!" }))
@@ -21,21 +33,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/{*path}", get(forward_request_to_provider))
         .route("/{*path}", post(forward_request_to_provider));
 
-    let loader: Box<dyn ConfigLoader> = Box::new(TomlConfigLoader::new("config.toml"));
-    let app_config = loader.load()?;
+    let repo: Arc<dyn DataRepository> = build_repository().await?;
 
-    println!("Successfully loaded config!");
-    println!("--- Loaded Providers ---");
-    for provider in &app_config.providers {
-        println!("Name: {}, URL: {}", provider.name, provider.url);
-    }
+    // 2. Perform granular/lazy business queries seamlessly
+    if let Some(provider) = repo.get_provider("openai").await? {
+        println!("Found Provider: {}", provider.name);
 
-    println!("\n--- Loaded Models ---");
-    for model in &app_config.models {
-        for id in &model.provider_ids {
-            println!("Provider: {}", id)
+        // Lazily fetch the related models only when we need them!
+        let models = repo.get_models_for_provider(&provider.id).await?;
+        for model in models {
+            println!("  -> Supports Model: {}", model.name);
         }
-        println!("Model Name: {}", model.name);
     }
 
     let listener = match tokio::net::TcpListener::bind("0.0.0.0:3000").await {
@@ -47,6 +55,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Listening on http://{addr}");
     axum::serve(listener, app).await.unwrap();
     Ok(())
+}
+
+#[cfg(feature = "db")]
+async fn build_repository() -> Result<Arc<dyn DataRepository>, Box<dyn Error + Send + Sync>> {
+    if let Ok(database_url) = std::env::var("DATABASE_URL") {
+        let pool = sqlx::PgPool::connect(&database_url).await?;
+        return Ok(Arc::new(DbRepository::new(pool)));
+    }
+
+    Ok(Arc::new(TomlRepository::new("config.toml")?))
+}
+
+#[cfg(not(feature = "db"))]
+async fn build_repository() -> Result<Arc<dyn DataRepository>, Box<dyn Error + Send + Sync>> {
+    Ok(Arc::new(TomlRepository::new("config.toml")?))
 }
 
 async fn forward_request_to_provider(

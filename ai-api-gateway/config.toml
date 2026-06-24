@@ -1,3 +1,6 @@
+# config.toml
+
+# 1. Define the Providers
 [[providers]]
 id = "openai"
 name = "OpenAI"
@@ -8,14 +11,27 @@ id = "anthropic"
 name = "Anthropic"
 url = "https://api.anthropic.com/v1"
 
+
+# 2. Define the Models
 [[models]]
-name = "gpt-4o"
-provider_ids = ["openai"]
+id = "gpt-4o"
+name = "GPT-4o"
 
 [[models]]
-name = "claude-3-5-sonnet"
-provider_ids = ["anthropic"]
+id = "claude-3-5"
+name = "Claude 3.5 Sonnet"
 
-[[models]]
-name = "custom-router-model"
-provider_ids = ["openai", "anthropic"] # Belongs to both!
+
+# 3. The Intermediate Table / Many-to-Many Mapping
+[[provider_models]]
+provider_id = "openai"
+model_id = "gpt-4o"
+
+[[provider_models]]
+provider_id = "anthropic"
+model_id = "claude-3-5"
+
+# If a model can be routed through multiple providers, you just add another link:
+[[provider_models]]
+provider_id = "openai"
+model_id = "claude-3-5"  # (e.g., if OpenAI starts proxying it, or for demonstration)

@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-api-gateway-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ai_gateway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai_gateway}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_gateway}
+    ports:
+      - "${POSTGRES_PORT:-5430}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_gateway} -d ${POSTGRES_DB:-ai_gateway}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
