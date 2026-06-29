@@ -8,8 +8,12 @@ pub struct TomlRepository {
 
 impl TomlRepository {
     pub fn new(path: &str) -> DataResult<Self> {
-        let content = fs::read_to_string(path)?;
-        let cache: TomlFileStructure = toml::from_str(&content)?;
+        let content = fs::read_to_string(path)
+            .map_err(|err| format!("failed to read TOML config file '{path}': {err}"))?;
+
+        let cache: TomlFileStructure = toml::from_str(&content)
+            .map_err(|err| format!("failed to parse TOML config file '{path}': {err}"))?;
+
         Ok(Self { cache })
     }
 }
