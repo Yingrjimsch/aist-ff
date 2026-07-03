@@ -6,17 +6,19 @@ mod requests;
 use data::db_repo::DbRepository;
 use data::toml_repo::TomlRepository;
 use data::traits::DataRepository;
+use futures_util::stream;
 
-use std::{error::Error, sync::Arc};
+use std::{error::Error, sync::Arc, time::Duration};
 
 use axum::{
     Router,
     body::{Body, Bytes},
     extract::{Path, State},
     http::{HeaderMap, Response, StatusCode},
+    response::IntoResponse,
     routing::{any, get},
 };
-use rand::prelude::IndexedRandom;
+use rand::{RngExt, prelude::IndexedRandom};
 use reqwest::Method;
 
 use crate::{
@@ -29,9 +31,6 @@ use crate::{
 struct AppState {
     repo: Arc<dyn DataRepository>,
 }
-
-// const BASE_URL: &str = "https://jsonplaceholder.typicode.com";
-const BASE_URL: &str = "https://mgb-aifo-proxy-dev.service.migros.cloud";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -46,6 +45,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let app: Router = Router::new()
         .route("/", get(|| async { "I am sooo healthy!" }))
+        .route("/favicon.ico", any(|| async { StatusCode::NO_CONTENT }))
+        .route("/terminal", get(scramble_handler))
         .route("/health", get(|| async { "I am sooo healthy!" }))
         .route("/{*path}", any(forward_request_to_provider))
         .with_state(state);
@@ -156,4 +157,57 @@ async fn print_system_settings(state: AppState) -> Result<(), Box<dyn Error + Se
         }
     }
     Ok(())
+}
+
+async fn scramble_handler() -> impl IntoResponse {
+    let target = "I am sooo\n healthy!";
+    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=";
+
+    // Total animation frames
+    let total_frames = 35;
+
+    // Create a stream that ticks every 50 milliseconds
+    let interval = tokio::time::interval(Duration::from_millis(50));
+    let frame_stream = stream::unfold((interval, 0), move |(mut interval, frame)| async move {
+        if frame > total_frames {
+            return None; // End the stream
+        }
+        interval.tick().await;
+
+        let mut rng = rand::rng();
+        let mut display = String::new();
+
+        // ANSI Escape Codes:
+        // \x1B[2J clears the screen, \x1B[H moves cursor to the top-left corner
+        display.push_str("\x1B[2J\x1B[H");
+
+        // Build the current frame character by character
+        for (i, target_char) in target.chars().enumerate() {
+            if target_char == '\n' {
+                display.push('\n');
+                continue;
+            }
+
+            // Letters lock into place progressively from left to right
+            let lock_threshold = (total_frames * i) / target.len();
+
+            if frame >= total_frames || frame > lock_threshold && rng.random_bool(0.3) {
+                display.push(target_char);
+            } else {
+                // Pick a random cipher character
+                let idx = rng.random_range(0..chars.len());
+                display.push(chars.chars().nth(idx).unwrap());
+            }
+        }
+
+        // If it's the final frame, add a clean trailing newline
+        if frame == total_frames {
+            display.push_str("\n");
+        }
+
+        Some((Ok::<_, std::io::Error>(display), (interval, frame + 1)))
+    });
+
+    // Return the stream as an HTTP body chunk response
+    Body::from_stream(frame_stream)
 }
