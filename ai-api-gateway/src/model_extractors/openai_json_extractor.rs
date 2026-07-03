@@ -1,39 +1,36 @@
-// use crate::{model_extractors::traits::ModelExtractor, requests::request_context::RequestContext};
+use axum::Error;
+use serde::Deserialize;
 
-// pub struct OpenAiJsonExtractor;
+use crate::{
+    model_extractors::{traits::ModelExtractor, types::ModelExtractionError},
+    requests::request_context::RequestContext,
+};
 
-// impl ModelExtractor for OpenAiJsonExtractor {
-//     fn id(&self) -> &'static str {
-//         "openai_json"
-//     }
+pub struct OpenAiJsonExtractor;
 
-//     // fn matches(&self, ctx: &RequestContext) -> bool {
-//     //     matches!(ctx.content_type, ContentType::Json)
-//     //         && matches!(
-//     //             ctx.endpoint_kind,
-//     //             EndpointKind::ChatCompletions
-//     //                 | EndpointKind::Responses
-//     //                 | EndpointKind::Embeddings
-//     //                 | EndpointKind::Images
-//     //         )
-//     // }
+#[derive(Deserialize)]
+struct ModelField {
+    model: Option<String>,
+}
 
-//     fn extract(&self, ctx: &mut RequestContext) -> Result<ModelExtraction, ModelExtractionError> {
-//         let value: serde_json::Value = serde_json::from_slice(&ctx.body)?;
+impl ModelExtractor for OpenAiJsonExtractor {
+    // fn id(&self) -> &'static str {
+    //     "openai_json"
+    // }
 
-//         let model = value
-//             .get("model")
-//             .and_then(|v| v.as_str())
-//             .ok_or(ModelExtractionError::MissingModel)?;
+    // fn matches(&self, ctx: &RequestContext) -> bool {
+    //     matches!(ctx.content_type, ContentType::Json)
+    //         && matches!(
+    //             ctx.endpoint_kind,
+    //             EndpointKind::ChatCompletions
+    //                 | EndpointKind::Responses
+    //                 | EndpointKind::Embeddings
+    //                 | EndpointKind::Images
+    //         )
+    // }
 
-//         Ok(ModelExtraction {
-//             identifiers: vec![ModelIdentifier {
-//                 raw: model.to_owned(),
-//                 kind: ModelIdentifierKind::Model,
-//                 provider_hint: None,
-//             }],
-//             source: ModelSource::JsonField("model"),
-//             confidence: Confidence::High,
-//         })
-//     }
-// }
+    fn extract(&self, ctx: &RequestContext) -> Result<Option<String>, ModelExtractionError> {
+        let model: ModelField = serde_json::from_slice(&ctx.body)?;
+        Ok(model.model)
+    }
+}

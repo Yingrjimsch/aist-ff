@@ -16,9 +16,14 @@ use axum::{
     http::{HeaderMap, Response, StatusCode},
     routing::{any, get},
 };
+use rand::prelude::IndexedRandom;
 use reqwest::Method;
 
-use crate::requests::request_context::RequestContext;
+use crate::{
+    data::models::Provider,
+    model_extractors::{openai_json_extractor::OpenAiJsonExtractor, traits::ModelExtractor},
+    requests::request_context::RequestContext,
+};
 
 #[derive(Clone)]
 struct AppState {
@@ -79,7 +84,30 @@ async fn forward_request_to_provider(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Response<Body>, StatusCode> {
+    println!("test");
     let ctx: RequestContext = RequestContext::new(method, path, headers, body);
+    // TODO: filter model logic
+    let extractor: OpenAiJsonExtractor = OpenAiJsonExtractor;
+    let model: Option<String> = extractor.extract(&ctx).map_err(|err| {
+        eprintln!("failed to extract model: {err}");
+        StatusCode::BAD_REQUEST
+    })?;
+    println!("Extracted Model: {:?}", model);
+    // TODO: select provider logic
+    let providers: Vec<Provider> = match model {
+        Some(model) => state
+            .repo
+            .get_providers_for_model(&model)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        None => Vec::new(),
+    };
+    println!("Extracted Providers: {:?}", providers);
+
+    // TODO: switch api key if necessary
+    // TODO: switch path accordingly
+    let provider: Option<&Provider> = providers.choose(&mut rand::rng());
+    println!("Random chosen provider: {:?}", provider);
     let url: String = format!("{BASE_URL}/{0}", ctx.path);
     let mut headers: HeaderMap = ctx.headers;
     headers.remove("host");

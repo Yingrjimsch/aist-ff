@@ -25,3 +25,6 @@ rustc-ice-*.txt
 
 # OS files
 .DS_Store
+
+# Local environment
+.env
