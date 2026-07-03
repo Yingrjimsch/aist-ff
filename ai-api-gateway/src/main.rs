@@ -106,12 +106,20 @@ async fn forward_request_to_provider(
 
     // TODO: switch api key if necessary
     // TODO: switch path accordingly
-    let provider: Option<&Provider> = providers.choose(&mut rand::rng());
+    let provider = providers
+        .as_slice()
+        .choose(&mut rand::rng())
+        .ok_or(StatusCode::BAD_GATEWAY)?;
     println!("Random chosen provider: {:?}", provider);
-    let url: String = format!("{BASE_URL}/{0}", ctx.path);
+    let url: String = format!(
+        "{}/{}",
+        provider.url.trim_end_matches('/'),
+        ctx.path.trim_start_matches('/')
+    );
     let mut headers: HeaderMap = ctx.headers;
     headers.remove("host");
 
+    println!("Requesting URL: {}", url);
     let client: reqwest::Client = reqwest::Client::new();
 
     let upstream_response: reqwest::Response = client
