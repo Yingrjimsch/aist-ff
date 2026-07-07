@@ -24,7 +24,7 @@ use reqwest::Method;
 
 use crate::{
     data::models::Provider,
-    model_extractors::{openai_json_extractor::OpenAiJsonExtractor, traits::ModelExtractor},
+    model_extractors::{ModelExtractor, OpenAiJsonExtractor},
     requests::request_context::RequestContext,
     secrets_loaders::{
         apply::apply_auth, composite_secret_loader::CompositeSecretLoader,
