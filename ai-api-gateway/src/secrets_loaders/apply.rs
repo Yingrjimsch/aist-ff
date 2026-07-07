@@ -1,4 +1,5 @@
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::AUTHORIZATION;
 
 use crate::{
     data::models::Provider,
@@ -7,6 +8,8 @@ use crate::{
         types::{AuthError, ProviderAuthMethod},
     },
 };
+
+const BEARER_PREFIX: &str = "Bearer ";
 
 pub fn apply_auth(
     headers: &mut HeaderMap,
@@ -20,7 +23,11 @@ pub fn apply_auth(
             headers.insert(name.parse::<HeaderName>()?, value.parse::<HeaderValue>()?);
             Ok(())
         }
-        // TODO: not implemented yet
-        ProviderAuthMethod::BearerToken { token } => Ok(()),
+        ProviderAuthMethod::BearerSecret { secret } => {
+            let value = secret_loader.load(secret)?;
+            let bearer_header_value = format!("{BEARER_PREFIX}{value}").parse::<HeaderValue>()?;
+            headers.insert(AUTHORIZATION, bearer_header_value);
+            Ok(())
+        }
     }
 }

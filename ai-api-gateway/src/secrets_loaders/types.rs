@@ -33,7 +33,7 @@ pub enum ProviderAuthMethod {
     #[serde(rename = "none")]
     None,
     #[serde(rename = "bearer")]
-    BearerToken { token: SecretRef },
+    BearerSecret { secret: SecretRef },
     #[serde(rename = "header")]
     Header { name: String, value: SecretRef },
 }
