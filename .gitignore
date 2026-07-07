@@ -28,3 +28,6 @@ rustc-ice-*.txt
 
 # Local environment
 .env
+
+# Config File
+config.toml
