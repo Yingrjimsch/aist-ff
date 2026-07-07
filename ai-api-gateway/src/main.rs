@@ -1,6 +1,7 @@
 mod data;
 mod model_extractors;
 mod requests;
+mod secrets_loaders;
 
 #[cfg(feature = "db")]
 use data::db_repo::DbRepository;
@@ -25,11 +26,17 @@ use crate::{
     data::models::Provider,
     model_extractors::{openai_json_extractor::OpenAiJsonExtractor, traits::ModelExtractor},
     requests::request_context::RequestContext,
+    secrets_loaders::{
+        apply::apply_auth, composite_secret_loader::CompositeSecretLoader,
+        env_secret_loader::EnvSecretLoader, file_secret_loader::FileSecretLoader,
+        traits::SecretLoader,
+    },
 };
 
 #[derive(Clone)]
 struct AppState {
     repo: Arc<dyn DataRepository>,
+    secret_loader: Arc<dyn SecretLoader>,
 }
 
 #[tokio::main]
@@ -39,7 +46,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // .route("/{*path}", post(forward_request_to_provider));
 
     let repo: Arc<dyn DataRepository> = build_repository().await?;
-    let state: AppState = AppState { repo };
+    let secret_loader =
+        CompositeSecretLoader::new(vec![Box::new(EnvSecretLoader), Box::new(FileSecretLoader)]);
+    let state: AppState = AppState {
+        repo,
+        secret_loader: Arc::new(secret_loader),
+    };
     print_system_settings(state.clone()).await?;
     // 2. Perform granular/lazy business queries seamlessly
 
@@ -112,12 +124,24 @@ async fn forward_request_to_provider(
         .choose(&mut rand::rng())
         .ok_or(StatusCode::BAD_GATEWAY)?;
     println!("Random chosen provider: {:?}", provider);
+    println!("Provider auth method {:?}", provider.auth_method);
     let url: String = format!(
         "{}/{}",
         provider.url.trim_end_matches('/'),
         ctx.path.trim_start_matches('/')
     );
+
     let mut headers: HeaderMap = ctx.headers;
+    apply_auth(
+        &mut headers,
+        &provider.auth_method,
+        state.secret_loader.as_ref(),
+    )
+    .map_err(|err| {
+        eprintln!("failed to apply auth: {err:?}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    println!("Headers: {:?}", headers);
     headers.remove("host");
 
     println!("Requesting URL: {}", url);

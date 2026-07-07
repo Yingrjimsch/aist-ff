@@ -6,11 +6,26 @@ id = "openai"
 name = "OpenAI"
 url = "https://api.openai.com/v1"
 
+[providers.auth_method]
+type = "header"
+name = "api-key"
+
+[providers.auth_method.value]
+type = "env"
+name = "AZURE_API_KEY"
+
 [[providers]]
 id = "anthropic"
 name = "Anthropic"
 url = "https://api.anthropic.com/v1"
 
+[providers.auth_method]
+type = "header"
+name = "api-key"
+
+[providers.auth_method.value]
+type = "env"
+name = "AZURE_API_KEY"
 
 # 2. Define the Models
 [[models]]

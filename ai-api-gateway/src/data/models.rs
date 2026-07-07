@@ -1,11 +1,14 @@
 use serde::Deserialize;
 
+use crate::secrets_loaders::types::ProviderAuthMethod;
+
 #[derive(Debug, Deserialize, Clone)]
 #[cfg_attr(feature = "db", derive(sqlx::FromRow))]
 pub struct Provider {
     pub id: String,
     pub name: String,
     pub url: String,
+    pub auth_method: ProviderAuthMethod,
 }
 
 #[derive(Debug, Deserialize, Clone)]
