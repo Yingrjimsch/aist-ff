@@ -12,6 +12,10 @@ async-trait = "0.1.89"
 axum = "0.8.9"
 dotenvy = "0.15.7"
 futures-util = "0.3.32"
+opentelemetry = { version = "0.32.0", features = ["logs", "metrics"] }
+opentelemetry-appender-tracing = "0.32.0"
+opentelemetry-stdout = { version = "0.32.0", features = ["logs", "metrics"] }
+opentelemetry_sdk = { version = "0.32.1", features = ["logs", "metrics", "rt-tokio"] }
 rand = "0.10.2"
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -19,3 +23,12 @@ serde_json = "1.0.150"
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres"], optional = true }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 toml = "1.1.2"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+
+[profile.release]
+opt-level = "z"     # Optimize for binary size (instead of maximum raw speed '3')
+lto = true          # Enable Link-Time Optimization (instructs the compiler to look across ALL crates and aggressively delete dead code)
+codegen-units = 1   # Reduces parallel compilation to allow deeper optimizations
+panic = "abort"     # Removes panic unwinding infrastructure (saves significant space, skips stack unwinding on crash)
+strip = true        # Automatically strips all debug symbols and function name tables from the binary

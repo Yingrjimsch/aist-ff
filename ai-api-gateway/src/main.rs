@@ -1,13 +1,16 @@
 mod data;
 mod model_extractors;
+mod opentelemetry;
 mod requests;
 mod secrets_loaders;
 
+use ::opentelemetry::{KeyValue, global};
 #[cfg(feature = "db")]
 use data::db_repo::DbRepository;
 use data::toml_repo::TomlRepository;
 use data::traits::DataRepository;
 use futures_util::stream;
+use tracing::{debug, error, info};
 
 use std::{error::Error, sync::Arc, time::Duration};
 
@@ -25,6 +28,7 @@ use reqwest::Method;
 use crate::{
     data::models::Provider,
     model_extractors::{ModelExtractor, OpenAiJsonExtractor},
+    opentelemetry::init_telemetry,
     requests::request_context::RequestContext,
     secrets_loaders::{
         apply::apply_auth, composite_secret_loader::CompositeSecretLoader,
@@ -41,6 +45,22 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (_logger_provider, _meter_provider) = init_telemetry();
+    // TODO: logs and meter was implemented in general now i have to define the logs and metrics for the app
+    // let meter = global::meter("ai_gateway_metrics");
+    // let token_counter = meter
+    //     .u64_counter("tokens_consumed_total")
+    //     .with_description("Total number of tokens processed by the gateway")
+    //     .build();
+    // let attributes = [
+    //     KeyValue::new("model", "hello"),
+    //     KeyValue::new("status", "success"),
+    // ];
+    // token_counter.add(120, &attributes);
+    // tracing::info!(
+    //     target: "gateway::llm",
+    //     "LLM generation complete"
+    // );
     dotenvy::dotenv().ok();
 
     // .route("/{*path}", post(forward_request_to_provider));
@@ -72,6 +92,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let addr: std::net::SocketAddr = listener.local_addr().unwrap();
     println!("Listening on http://{addr}");
     axum::serve(listener, app).await.unwrap();
+    info!("Successfull startup");
+
     Ok(())
 }
 
