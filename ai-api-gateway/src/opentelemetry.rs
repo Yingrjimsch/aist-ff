@@ -1,7 +1,7 @@
 use opentelemetry::global;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_stdout::MetricExporter;
-use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt};
 
 pub fn init_telemetry() -> (opentelemetry_sdk::logs::SdkLoggerProvider, SdkMeterProvider) {
     let log_exporter: opentelemetry_stdout::LogExporter =
@@ -17,13 +17,9 @@ pub fn init_telemetry() -> (opentelemetry_sdk::logs::SdkLoggerProvider, SdkMeter
         opentelemetry_sdk::logs::SdkLoggerProvider,
         opentelemetry_sdk::logs::SdkLogger,
     > = opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge::new(&logger_provider);
-    let subscriber: tracing_subscriber::layer::Layered<
-        opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge<
-            opentelemetry_sdk::logs::SdkLoggerProvider,
-            opentelemetry_sdk::logs::SdkLogger,
-        >,
-        tracing_subscriber::Registry,
-    > = tracing_subscriber::registry().with(otel_layer);
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("warn,ai_api_gateway=debug"));
+    let subscriber = tracing_subscriber::registry().with(filter).with(otel_layer);
     tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 
     let metric_exporter = MetricExporter::default();

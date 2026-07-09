@@ -90,7 +90,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         };
 
     let addr: std::net::SocketAddr = listener.local_addr().unwrap();
-    println!("Listening on http://{addr}");
+    info!("Listening on http://{addr}");
     axum::serve(listener, app).await.unwrap();
     info!("Successfull startup");
 
@@ -118,16 +118,11 @@ async fn forward_request_to_provider(
     Path(path): Path<String>,
     headers: HeaderMap,
     body: Bytes,
-) -> Result<Response<Body>, StatusCode> {
-    println!("test");
+) -> Result<Response<Body>, (StatusCode)> {
     let ctx: RequestContext = RequestContext::new(method, path, headers, body);
     // TODO: filter model logic
-    let extractor: OpenAiJsonExtractor = OpenAiJsonExtractor;
-    let model: Option<String> = extractor.extract(&ctx).map_err(|err| {
-        eprintln!("failed to extract model: {err}");
-        StatusCode::BAD_REQUEST
-    })?;
-    println!("Extracted Model: {:?}", model);
+    let model = fun_name(&ctx)?;
+    info!(model = model, "Model has been successfully extracted.");
     // TODO: select provider logic
     let providers: Vec<Provider> = match model {
         Some(model) => state
@@ -137,22 +132,22 @@ async fn forward_request_to_provider(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
         None => Vec::new(),
     };
-    println!("Extracted Providers: {:?}", providers);
+    info!("Extracted Providers: {:?}", providers);
 
-    // TODO: switch api key if necessary
     // TODO: switch path accordingly
     let provider = providers
         .as_slice()
         .choose(&mut rand::rng())
         .ok_or(StatusCode::BAD_GATEWAY)?;
-    println!("Random chosen provider: {:?}", provider);
-    println!("Provider auth method {:?}", provider.auth_method);
+    info!("Random chosen provider: {:?}", provider);
+    info!("Provider auth method {:?}", provider.auth_method);
     let url: String = format!(
         "{}/{}",
         provider.url.trim_end_matches('/'),
         ctx.path.trim_start_matches('/')
     );
 
+    // TODO: switch api key if necessary
     let mut headers: HeaderMap = ctx.headers;
     apply_auth(
         &mut headers,
@@ -160,13 +155,13 @@ async fn forward_request_to_provider(
         state.secret_loader.as_ref(),
     )
     .map_err(|err| {
-        eprintln!("failed to apply auth: {err:?}");
+        error!("failed to apply auth: {err:?}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    println!("Headers: {:?}", headers);
+    info!("Headers: {:?}", headers);
     headers.remove("host");
 
-    println!("Requesting URL: {}", url);
+    info!("Requesting URL: {}", url);
     let client: reqwest::Client = reqwest::Client::new();
 
     let upstream_response: reqwest::Response = client
@@ -189,17 +184,26 @@ async fn forward_request_to_provider(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+fn fun_name(ctx: &RequestContext) -> Result<Option<String>, StatusCode> {
+    let extractor: OpenAiJsonExtractor = OpenAiJsonExtractor;
+    let model: Option<String> = extractor.extract(ctx).map_err(|err| {
+        //TODO: error message is not shown in Browser when i want to do curl
+        error!("failed to extract model: {err}");
+        StatusCode::BAD_REQUEST
+    })?;
+    Ok(model)
+}
+
 // TODO: here make some nice print statements for the whole init
 async fn print_system_settings(state: AppState) -> Result<(), Box<dyn Error + Send + Sync>> {
-    println!("hello");
     if let Some(provider) = state.repo.get_provider("openai").await? {
-        println!("Found Provider: {}", provider.name);
+        info!("Found Provider: {}", provider.name);
 
         // Lazily fetch the related models only when we need them!
         let models: Vec<data::models::Model> =
             state.repo.get_models_for_provider(&provider.id).await?;
         for model in models {
-            println!("  -> Supports Model: {}", model.name);
+            info!("  -> Supports Model: {}", model.name);
         }
     }
     Ok(())

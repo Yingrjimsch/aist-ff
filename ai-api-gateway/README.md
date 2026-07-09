@@ -6,3 +6,4 @@ Ideas
 - [] Secrets loading module (loading secret like pwd from ENV or Vault)
 - [] CLI with some functionality
 - [] Discovery Endpoint
+- [] Logging with Opentelemetry
