@@ -15,12 +15,11 @@ impl DbRepository {
 #[async_trait::async_trait]
 impl DataRepository for DbRepository {
     async fn get_provider(&self, id: &str) -> DataResult<Option<Provider>> {
-        let provider = sqlx::query_as::<_, Provider>(
-            "SELECT id, name, url FROM providers WHERE id = $1",
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let provider =
+            sqlx::query_as::<_, Provider>("SELECT id, name, url FROM providers WHERE id = $1")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await?;
         Ok(provider)
     }
 
